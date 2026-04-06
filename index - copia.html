@@ -1,0 +1,2894 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Chat IA</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #ffffff;
+  --sidebar: #171717;
+  --surface: #2f2f2f;
+  --surface2: #3d3d3d;
+  --accent: #10a37f;
+  --text: #111111;
+  --text2: #8e8ea0;
+  --border: #3d3d3d;
+  --user-bubble: #2f2f2f;
+  --ai-bubble: transparent;
+  --danger: #ef4444;
+  --radius: 12px;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ===================== LAYOUT ===================== */
+#pantalla-inicio { display: none; align-items: center; justify-content: center; height: 100vh; height: 100dvh; }
+#app { display: none; height: 100vh; height: 100dvh; flex-direction: row; }
+
+/* ===================== SETUP ===================== */
+.setup-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 40px;
+  width: 480px;
+  max-width: 95vw;
+}
+.setup-card h1 { font-size: 22px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.setup-card .subtitulo { color: var(--text2); font-size: 13px; margin-bottom: 28px; }
+.setup-nota { margin-top: 14px; color: var(--text2); font-size: 12px; text-align: center; }
+.setup-nota a { color: var(--accent); text-decoration: none; }
+
+/* ===================== SIDEBAR ===================== */
+#sidebar {
+  width: 250px;
+  min-width: 250px;
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.2s, min-width 0.2s;
+}
+#sidebar.colapsado { width: 0; min-width: 0; border-right: none; }
+
+.sidebar-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.sidebar-titulo { font-size: 14px; font-weight: 700; color: #ececec; white-space: nowrap; }
+
+#lista-chats { flex: 1; overflow-y: auto; padding: 6px; }
+
+.chat-item {
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 2px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.12s;
+  min-width: 0;
+}
+.chat-item:hover { background: rgba(255,255,255,0.06); }
+.chat-item.activo { background: rgba(255,255,255,0.1); }
+.chat-item-texto { flex: 1; min-width: 0; }
+.chat-item-titulo { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e8e8e8; }
+.chat-item-fecha { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.chat-item-borrar {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+.chat-item:hover .chat-item-borrar { opacity: 1; }
+
+.sidebar-footer {
+  padding: 10px 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.sidebar-footer .btn-sidebar {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  padding: 8px 4px;
+  border-radius: 8px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.sidebar-footer .btn-sidebar:hover { color: var(--accent); background: var(--surface); }
+.sidebar-footer .btn-sidebar .icon { font-size: 17px; }
+
+/* ===================== MAIN ===================== */
+#main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+#topbar {
+  height: 52px;
+  background: var(--bg);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  padding-top: max(0px, env(safe-area-inset-top));
+  gap: 10px;
+  flex-shrink: 0;
+}
+#topbar .btn-icono { font-size: 18px; }
+
+#selector-modelo {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 260px;
+  min-width: 0;
+  flex: 1;
+  transition: background 0.15s;
+}
+#selector-modelo:hover { background: rgba(255,255,255,0.06); }
+#selector-modelo:focus { outline: none; background: rgba(255,255,255,0.06); }
+
+#info-memorias {
+  font-size: 11px;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+/* ===================== MENSAJES ===================== */
+#area-mensajes {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px max(20px, calc(50% - 380px));
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.empty-state {
+  margin: auto;
+  text-align: center;
+  color: var(--text2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.empty-state .icono-grande { font-size: 44px; }
+.empty-state h3 { font-size: 18px; color: var(--text); }
+.empty-state p { font-size: 13px; }
+
+.burbuja {
+  max-width: 80%;
+  word-break: break-word;
+}
+.burbuja-usuario {
+  background: #ffd6e0;
+  border: 1px solid #f0a8bc;
+  align-self: flex-end;
+  border-radius: 18px;
+  padding: 12px 18px;
+  max-width: 70%;
+  font-size: 15px;
+  line-height: 1.65;
+  color: #3d1520;
+}
+.burbuja-ai {
+  background: transparent;
+  align-self: flex-start;
+  padding: 4px 0;
+  font-size: 16px;
+  line-height: 1.75;
+  max-width: 85%;
+  color: #111111;
+}
+.burbuja-error {
+  background: rgba(224,82,82,0.1);
+  color: #e05252;
+  align-self: center;
+  border-radius: 8px;
+  font-size: 13px;
+  padding: 10px 16px;
+  max-width: 75%;
+}
+
+/* Markdown dentro de burbujas */
+.burbuja p { margin: 0 0 8px; }
+.burbuja p:last-child { margin-bottom: 0; }
+.burbuja strong { font-weight: 600; }
+.burbuja em { font-style: italic; }
+.burbuja h1, .burbuja h2, .burbuja h3 { font-weight: 700; color: var(--accent); margin: 12px 0 6px; }
+.burbuja h1 { font-size: 20px; }
+.burbuja h2 { font-size: 18px; }
+.burbuja h3 { font-size: 16px; }
+.burbuja ul, .burbuja ol { padding-left: 20px; margin: 4px 0; }
+.burbuja li { margin: 3px 0; }
+.burbuja code {
+  background: rgba(0,0,0,0.35);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Cascadia Code', 'Courier New', monospace;
+  font-size: 13px;
+}
+.burbuja pre {
+  background: rgba(0,0,0,0.4);
+  padding: 12px 14px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.burbuja pre code { background: none; padding: 0; font-size: 12.5px; }
+.burbuja blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+  color: var(--text2);
+  margin: 6px 0;
+}
+.burbuja hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+
+/* Cursor parpadeante durante streaming */
+.cursor-ia {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--accent);
+  vertical-align: middle;
+  margin-left: 2px;
+  animation: parpadeo 0.8s step-end infinite;
+}
+@keyframes parpadeo { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* Indicador de escritura */
+.typing-dots {
+  align-self: flex-start;
+  background: var(--surface);
+  padding: 12px 16px;
+  border-radius: 14px;
+  border-bottom-left-radius: 4px;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.dot {
+  width: 7px; height: 7px;
+  background: var(--text2);
+  border-radius: 50%;
+  animation: dots 1.2s infinite;
+}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dots { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
+
+/* ===================== INPUT ===================== */
+#area-input {
+  padding: 10px max(16px, calc(50% - 380px)) max(18px, calc(env(safe-area-inset-bottom) + 8px));
+  background: var(--bg);
+  border-top: none;
+  flex-shrink: 0;
+}
+.input-caja {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: #ffd6e0;
+  border: 1px solid #f0a8bc;
+  border-radius: 24px;
+  padding: 12px 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 12px rgba(220,100,130,0.15);
+}
+.input-caja:focus-within { border-color: #e07090; box-shadow: 0 2px 20px rgba(220,100,130,0.25); }
+
+#campo-msg {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #3d1520;
+  font-size: 15px;
+  font-family: inherit;
+  resize: none;
+  min-height: 28px;
+  max-height: 150px;
+  line-height: 1.5;
+  padding: 2px 0;
+}
+#campo-msg::placeholder { color: #b07888; }
+
+/* ===================== BOTONES ===================== */
+.btn {
+  padding: 9px 18px;
+  border-radius: 9px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: opacity 0.15s, filter 0.15s;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.1); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primario { background: var(--accent); color: #fff; }
+.btn-ghost { background: var(--surface); color: #ececec; border: 1px solid var(--border); }
+.btn-peligro { background: var(--danger); color: #fff; }
+
+.btn-icono {
+  background: none;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 7px;
+  font-size: 16px;
+  line-height: 1;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.btn-icono:hover { color: var(--accent); }
+.btn-icono.peligro:hover { color: var(--danger); }
+
+/* ===================== MODALES ===================== */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.overlay.visible { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  width: 540px;
+  max-width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 26px;
+  color: #ececec;
+}
+.modal h2 { font-size: 17px; font-weight: 700; color: var(--accent); margin-bottom: 20px; }
+
+.campo { margin-bottom: 15px; }
+.campo label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+.campo input, .campo textarea, .campo select {
+  width: 100%;
+  background: #ffd6e0;
+  border: 1px solid #f0a8bc;
+  color: #3d1520;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.campo input:focus, .campo textarea:focus { border-color: var(--accent); }
+.campo textarea { resize: vertical; min-height: 90px; }
+.campo select { cursor: pointer; }
+
+.divisor { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+.dos-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.modal-pie {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* Rangos */
+.rango-fila { display: flex; align-items: center; gap: 10px; }
+.rango-fila input[type=range] { flex: 1; accent-color: var(--accent); }
+.rango-valor { min-width: 38px; text-align: right; color: var(--accent); font-size: 13px; font-weight: 600; }
+
+/* Toggle switch */
+.toggle-fila { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+.switch { position: relative; width: 36px; height: 20px; display: inline-block; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch-slider {
+  position: absolute; inset: 0;
+  background: var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.switch-slider:before {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  left: 3px; top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+.switch input:checked + .switch-slider { background: var(--accent); }
+.switch input:checked + .switch-slider:before { transform: translateX(16px); }
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.badge-alta { background: rgba(224,82,82,0.18); color: #e05252; }
+.badge-media { background: rgba(241,196,15,0.18); color: #e8b800; }
+.badge-baja { background: rgba(74,144,226,0.18); color: #6aadee; }
+
+/* Tarjetas de memoria */
+.memoria-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px 14px;
+  margin-bottom: 9px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.memoria-info { flex: 1; min-width: 0; }
+.memoria-nombre { font-weight: 600; font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.memoria-keywords { color: var(--text2); font-size: 12px; }
+.memoria-acciones { display: flex; gap: 4px; flex-shrink: 0; }
+
+/* Toast */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: #ececec;
+  padding: 10px 20px;
+  border-radius: 9px;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none;
+  z-index: 9999;
+  white-space: nowrap;
+}
+#toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ===================== MENÚ ADJUNTOS POPUP ===================== */
+#contenedor-menu-adjuntos { position: relative; flex-shrink: 0; }
+#menu-adjuntos {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 6px 0;
+  flex-direction: column;
+  z-index: 300;
+  min-width: 210px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+}
+#menu-adjuntos.visible { display: flex; }
+.menu-adjunto-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #d0d0d0;
+  transition: background 0.12s;
+  border: none;
+  background: none;
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+}
+.menu-adjunto-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+.menu-adjunto-item .item-icono {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.08);
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.btn-mas-adjuntos {
+  background: none;
+  border: none;
+  color: #b07888;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+  font-size: 22px;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+  font-weight: 300;
+}
+.btn-mas-adjuntos:hover { color: #e07090; background: rgba(255,255,255,0.06); }
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #444; }
+
+/* Mobile */
+@media (max-width: 640px) {
+  #sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.22s;
+    width: 250px !important;
+    min-width: 250px !important;
+  }
+  #sidebar.abierto { transform: translateX(0); }
+  #sidebar.colapsado { transform: translateX(-100%); }
+  .burbuja { max-width: 92%; }
+
+  /* Main area fills full width (sidebar is fixed/off-screen) */
+  #main-area { width: 100%; }
+
+  /* Hide memory info pill — too crowded in topbar */
+  #info-memorias { display: none; }
+
+  /* Emoji picker: center it and cap width so it doesn't overflow */
+  #emoji-picker {
+    width: min(300px, 95vw);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  #emoji-picker.visible {
+    transform: translateX(-50%);
+  }
+
+  /* Prevent iOS zoom on input focus (triggered when font < 16px) */
+  #campo-msg { font-size: 16px; }
+  .campo input, .campo textarea, .campo select { font-size: 16px; }
+
+  /* Toolbar: scroll horizontally instead of overflowing */
+  #toolbar-adjuntos {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 3px;
+    scrollbar-width: none;
+  }
+  #toolbar-adjuntos::-webkit-scrollbar { display: none; }
+  .btn-herramienta { flex-shrink: 0; }
+
+  /* Larger touch targets */
+  .btn-icono { padding: 10px; }
+  .btn-herramienta { padding: 8px 14px; }
+  .emoji-cat-btn { padding: 8px; min-width: 36px; }
+
+  /* More comfortable modal padding */
+  .modal { padding: 16px; }
+
+  /* Setup card padding */
+  .setup-card { padding: 20px; }
+
+  /* Message bubbles */
+  .burbuja-usuario { max-width: 85%; }
+  .burbuja-ai { max-width: 92%; }
+}
+
+/* ===================== TOOLBAR ADJUNTOS ===================== */
+#toolbar-adjuntos {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+.btn-herramienta {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text2);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.btn-herramienta:hover { color: var(--text); background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.2); }
+.btn-herramienta.activo {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(16,163,127,0.1);
+}
+#indicador-busqueda {
+  font-size: 11px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#indicador-busqueda .dot-anim {
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: parpadeo 1s step-end infinite;
+}
+
+/* Preview de imágenes adjuntas */
+#preview-adjuntos {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+/* Pastilla de documento adjunto */
+.doc-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #ffd6e0;
+  border: 1px solid #f0a8bc;
+  border-radius: 10px;
+  padding: 6px 10px 6px 10px;
+  font-size: 12px;
+  color: #3d1520;
+  max-width: 200px;
+  flex-shrink: 0;
+}
+.doc-wrap .doc-icono { font-size: 18px; line-height: 1; }
+.doc-wrap .doc-nombre { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.doc-wrap .doc-borrar {
+  background: none;
+  border: none;
+  color: #e07090;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.thumb-wrap {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.thumb-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.thumb-borrar {
+  position: absolute;
+  top: 2px; right: 2px;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 18px; height: 18px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+}
+/* Imágenes en historial de chat */
+.chat-imagenes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.chat-img {
+  max-width: 240px;
+  max-height: 180px;
+  border-radius: 8px;
+  object-fit: cover;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+/* Lightbox */
+#lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+#lightbox.visible { display: flex; }
+#lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+
+/* Modelos personalizados list */
+.modelo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text2);
+}
+.modelo-item:last-child { border-bottom: none; }
+.btn-continuar {
+  display: block;
+  margin: 6px 0 4px 0;
+  padding: 5px 14px;
+  background: var(--surface2);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn-continuar:hover { background: var(--accent); color: #000; }
+
+/* ===================== DRAG & DROP ===================== */
+#drop-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 214, 224, 0.88);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+#drop-overlay.visible { display: flex; }
+.drop-mensaje {
+  background: #fff;
+  border: 3px dashed #e07090;
+  border-radius: 20px;
+  padding: 36px 56px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #3d1520;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ===================== EMOJI PICKER ===================== */
+#toolbar-adjuntos { position: relative; }
+#emoji-picker {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 300;
+  width: 300px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+}
+#emoji-picker.visible { display: flex; }
+.emoji-categorias {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+.emoji-cat-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.1s;
+  line-height: 1;
+}
+.emoji-cat-btn:hover { background: rgba(255,255,255,0.1); }
+.emoji-cat-btn.activo { background: rgba(16,163,127,0.2); }
+#emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.emoji-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 2px;
+  border-radius: 6px;
+  transition: background 0.1s;
+  line-height: 1;
+  text-align: center;
+}
+.emoji-btn:hover { background: rgba(255,255,255,0.12); }
+</style>
+</head>
+<body>
+
+<!-- ==================== PANTALLA DE INICIO ==================== -->
+<div id="pantalla-inicio">
+  <div class="setup-card">
+    <h1>💬 Mi Chat IA</h1>
+    <p class="subtitulo">Tu companion de IA personal, con memorias y sin censura de plataformas.</p>
+
+    <div class="campo">
+      <label>API Key de OpenRouter *</label>
+      <input type="password" id="setup-api-key" placeholder="sk-or-v1-...">
+    </div>
+    <div class="dos-col">
+      <div class="campo">
+        <label>Nombre de la IA</label>
+        <input type="text" id="setup-nombre-ai" placeholder="AI">
+      </div>
+      <div class="campo">
+        <label>Tu nombre</label>
+        <input type="text" id="setup-nombre-usuario" placeholder="Tú">
+      </div>
+    </div>
+    <div class="campo">
+      <label>System Prompt (personalidad de tu IA)</label>
+      <textarea id="setup-system-prompt" rows="5" placeholder="Describe la personalidad, tono y comportamiento que quieres para tu IA..."></textarea>
+    </div>
+
+    <button class="btn btn-primario" onclick="completarSetup()" style="width:100%;padding:12px">Comenzar →</button>
+    <p class="setup-nota">
+      Necesitas cuenta en <a href="https://openrouter.ai" target="_blank">openrouter.ai</a> para obtener tu API key.
+      Los ajustes se pueden cambiar en cualquier momento.
+    </p>
+  </div>
+</div>
+
+<!-- ==================== APP PRINCIPAL ==================== -->
+<div id="app">
+
+  <!-- Backdrop para cerrar sidebar en móvil tocando fuera -->
+  <div id="sidebar-backdrop" onclick="toggleSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99"></div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-titulo">💬 Chats</span>
+      <button class="btn-icono" onclick="nuevoChat()" title="Nuevo chat" style="font-size:20px">＋</button>
+    </div>
+    <div id="lista-chats"></div>
+    <div class="sidebar-footer">
+      <button class="btn-sidebar" onclick="abrirModal('modal-memorias')">
+        <span class="icon">🧠</span>Memorias
+      </button>
+      <button class="btn-sidebar" onclick="abrirModal('modal-ajustes')">
+        <span class="icon">⚙️</span>Ajustes
+      </button>
+      <button class="btn-sidebar" onclick="abrirModal('modal-exportar')">
+        <span class="icon">📤</span>Exportar
+      </button>
+      <button class="btn-sidebar" id="btn-sidebar-sync" onclick="abrirModal('modal-sync')">
+        <span class="icon">🔄</span>Sync
+      </button>
+    </div>
+  </div>
+
+  <!-- ÁREA PRINCIPAL -->
+  <div id="main-area">
+
+    <!-- TOPBAR -->
+    <div id="topbar">
+      <button class="btn-icono" onclick="toggleSidebar()" title="Menú">☰</button>
+      <select id="selector-modelo" onchange="cambiarModelo(this.value)"></select>
+      <span id="info-memorias"></span>
+      <div style="flex:1"></div>
+      <button class="btn-icono" onclick="nuevoChat()" title="Nuevo chat" style="font-size:20px">＋</button>
+    </div>
+
+    <!-- MENSAJES -->
+    <div id="area-mensajes"></div>
+
+    <!-- INPUT -->
+    <div id="area-input">
+      <!-- Toolbar -->
+      <div id="toolbar-adjuntos">
+        <div id="emoji-picker"></div>
+        <button class="btn-herramienta" id="btn-emoji" onclick="toggleEmojiPicker(event)" title="Insertar emoji">
+          😊 Emoji
+        </button>
+        <button class="btn-herramienta" id="btn-regenerar" onclick="regenerarRespuesta()" title="Regenerar última respuesta">
+          🔄 Regenerar
+        </button>
+        <span id="indicador-busqueda" style="display:none">
+          <span class="dot-anim"></span> búsqueda web activa
+        </span>
+      </div>
+
+      <!-- Preview de imágenes pendientes -->
+      <div id="preview-adjuntos"></div>
+
+      <!-- Input principal -->
+      <div class="input-caja">
+        <!-- Botón + con menú popup -->
+        <div id="contenedor-menu-adjuntos">
+          <div id="menu-adjuntos">
+            <button class="menu-adjunto-item" onclick="document.getElementById('input-imagen').click();document.getElementById('menu-adjuntos').classList.remove('visible')">
+              <span class="item-icono">🖼️</span> Adjuntar imagen
+            </button>
+            <button class="menu-adjunto-item" onclick="document.getElementById('input-archivo').click();document.getElementById('menu-adjuntos').classList.remove('visible')">
+              <span class="item-icono">📄</span> Adjuntar archivo
+            </button>
+            <button class="menu-adjunto-item" id="btn-web" onclick="toggleWebSearch();document.getElementById('menu-adjuntos').classList.remove('visible')">
+              <span class="item-icono">🌐</span> Buscar web
+            </button>
+          </div>
+          <button class="btn-mas-adjuntos" onclick="toggleMenuAdjuntos(event)" title="Adjuntar / opciones">＋</button>
+        </div>
+        <textarea id="campo-msg" placeholder="Escribe un mensaje... (Enter para enviar, Shift+Enter para nueva línea)"
+          rows="1"
+          onkeydown="manejarTecla(event)"
+          oninput="autoAltura(this)"></textarea>
+        <button class="btn-icono" id="btn-enviar" onclick="enviarMensaje()" title="Enviar" style="color:var(--accent);font-size:22px;margin-bottom:1px">↑</button>
+        <button class="btn-icono" id="btn-parar" onclick="detenerGeneracion()" title="Detener" style="display:none;color:var(--danger);font-size:18px">⏹</button>
+      </div>
+
+      <!-- Input oculto para imágenes -->
+      <input type="file" id="input-imagen" accept="image/*" multiple style="display:none" onchange="agregarImagenes(this)">
+      <input type="file" id="input-archivo" accept=".txt,.md,.csv,.json,.docx,.doc" multiple style="display:none" onchange="agregarArchivos(this)">
+    </div>
+
+    <!-- Lightbox para ver imágenes a tamaño completo -->
+    <div id="lightbox" onclick="this.classList.remove('visible')">
+      <img id="lightbox-img" src="" alt="">
+    </div>
+
+  </div>
+</div>
+
+<!-- ==================== MODAL AJUSTES ==================== -->
+<div class="overlay" id="modal-ajustes" onclick="clickFuera(event,'modal-ajustes')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>⚙️ Ajustes</h2>
+
+    <div class="campo">
+      <label>API Key de OpenRouter</label>
+      <input type="password" id="aj-api-key" placeholder="sk-or-v1-...">
+    </div>
+
+    <hr class="divisor">
+
+    <div class="dos-col">
+      <div class="campo">
+        <label>Nombre de la IA</label>
+        <input type="text" id="aj-nombre-ai">
+      </div>
+      <div class="campo">
+        <label>Tu nombre</label>
+        <input type="text" id="aj-nombre-usuario">
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>System Prompt</label>
+      <textarea id="aj-system-prompt" rows="7"></textarea>
+    </div>
+
+    <hr class="divisor">
+
+    <div class="campo">
+      <label>Temperatura — <span id="lbl-temp">1.00</span></label>
+      <div class="rango-fila">
+        <input type="range" id="aj-temperatura" min="0" max="2" step="0.05" value="1"
+          oninput="document.getElementById('lbl-temp').textContent = (+this.value).toFixed(2)">
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px">Controla la creatividad. 1.0 es el valor recomendado para companions.</div>
+    </div>
+
+    <div class="campo">
+      <label>Repetition Penalty — <span id="lbl-rep">1.15</span></label>
+      <div class="rango-fila">
+        <input type="range" id="aj-rep-penalty" min="1" max="1.5" step="0.01" value="1.15"
+          oninput="document.getElementById('lbl-rep').textContent = (+this.value).toFixed(2)">
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px">Evita que la IA repita frases. 1.15 es el valor recomendado.</div>
+    </div>
+
+    <div class="dos-col">
+      <div class="campo">
+        <label>Mensajes de contexto</label>
+        <input type="number" id="aj-contexto" min="1" max="50" value="8">
+      </div>
+      <div class="campo">
+        <label>Máx. memorias por mensaje</label>
+        <input type="number" id="aj-max-memorias" min="1" max="10" value="3">
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Max tokens en respuesta</label>
+      <input type="number" id="aj-max-tokens" min="256" max="16000" value="2048">
+    </div>
+
+    <hr class="divisor">
+
+    <div class="campo">
+      <label>Añadir modelo personalizado</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="nuevo-modelo-input" placeholder="ej: openai/gpt-4o-mini" style="flex:1">
+        <input type="text" id="nuevo-modelo-nombre" placeholder="Nombre (opcional)" style="flex:1">
+        <button class="btn btn-ghost" onclick="agregarModelo()" style="white-space:nowrap">Añadir</button>
+      </div>
+    </div>
+    <div id="lista-modelos-custom"></div>
+
+    <div class="modal-pie">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-ajustes')">Cancelar</button>
+      <button class="btn btn-primario" onclick="guardarAjustes()">Guardar ajustes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL MEMORIAS ==================== -->
+<div class="overlay" id="modal-memorias" onclick="clickFuera(event,'modal-memorias')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>🧠 Memorias</h2>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:14px">
+      Las memorias se inyectan en el contexto automáticamente según palabras clave.
+      Las memorias <strong>fijadas</strong> siempre se incluyen.
+    </p>
+    <button class="btn btn-primario" onclick="abrirEditorMemoria(null)" style="margin-bottom:16px">＋ Nueva memoria</button>
+    <div id="lista-memorias-modal"></div>
+    <div class="modal-pie">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-memorias')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL EDITOR MEMORIA ==================== -->
+<div class="overlay" id="modal-editor-memoria" onclick="clickFuera(event,'modal-editor-memoria')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2 id="editor-titulo">Nueva memoria</h2>
+    <input type="hidden" id="editor-id">
+
+    <div class="dos-col">
+      <div class="campo">
+        <label>Nombre *</label>
+        <input type="text" id="editor-nombre" placeholder="Ej: Mi trabajo">
+      </div>
+      <div class="campo">
+        <label>Prioridad</label>
+        <select id="editor-prioridad">
+          <option value="alta">Alta</option>
+          <option value="media" selected>Media</option>
+          <option value="baja">Baja</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Palabras clave (separadas por comas)</label>
+      <input type="text" id="editor-keywords" placeholder="trabajo, empresa, proyecto">
+    </div>
+
+    <div class="campo">
+      <label>Contenido *</label>
+      <textarea id="editor-contenido" rows="8" placeholder="Describe lo que quieres que tu IA recuerde sobre este tema..."></textarea>
+    </div>
+
+    <div style="display:flex;gap:30px;padding:6px 0 14px">
+      <div class="toggle-fila" style="gap:10px">
+        <span style="font-size:13px">📌 Fijada (siempre activa)</span>
+        <label class="switch">
+          <input type="checkbox" id="editor-fijada">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+      <div class="toggle-fila" style="gap:10px">
+        <span style="font-size:13px">Activa</span>
+        <label class="switch">
+          <input type="checkbox" id="editor-activa" checked>
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-pie">
+      <button class="btn btn-ghost" onclick="volverAMemorias()">Cancelar</button>
+      <button class="btn btn-primario" onclick="guardarMemoria()">Guardar memoria</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL EXPORTAR ==================== -->
+<div class="overlay" id="modal-exportar" onclick="clickFuera(event,'modal-exportar')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>📤 Exportar / Importar</h2>
+
+    <p style="color:var(--text2);font-size:12px;margin-bottom:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em">Chat actual</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px">
+      <button class="btn btn-primario" onclick="exportarMD()">📄 Exportar como Markdown</button>
+      <button class="btn btn-ghost" onclick="exportarChatJSON()">{ } Exportar como JSON</button>
+    </div>
+
+    <hr class="divisor">
+
+    <p style="color:var(--text2);font-size:12px;margin-bottom:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em">Todos los datos</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px">
+      <button class="btn btn-primario" onclick="exportarBackup()">💾 Backup completo</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('file-importar').click()">📂 Importar backup</button>
+      <input type="file" id="file-importar" accept=".json" style="display:none" onchange="importarBackup(this)">
+    </div>
+
+    <hr class="divisor">
+
+    <button class="btn btn-peligro" onclick="confirmarBorrarTodo()" style="margin-top:6px">🗑️ Borrar todos los datos</button>
+
+    <div class="modal-pie">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-exportar')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL SYNC ==================== -->
+<div class="overlay" id="modal-sync" onclick="clickFuera(event,'modal-sync')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>🔄 Sincronizar dispositivos</h2>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:16px">
+      Usa un <strong>GitHub Gist</strong> como puente entre tu PC y tu móvil. Gratis, sin servidor.
+      <br><a href="https://github.com/settings/tokens/new?scopes=gist&description=MiChatIA" target="_blank" style="color:var(--accent)">Crear token GitHub →</a>
+      <span style="color:var(--text2);font-size:11px">(scope: gist)</span>
+    </p>
+
+    <div class="campo">
+      <label>GitHub Personal Access Token</label>
+      <input type="password" id="sync-token" placeholder="ghp_...">
+    </div>
+
+    <div class="campo">
+      <label>Gist ID <span style="font-weight:400;text-transform:none;letter-spacing:0">(se crea automáticamente al hacer Push por primera vez)</span></label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="sync-gist-id" placeholder="Se genera al hacer Push →" style="flex:1;font-family:monospace;font-size:12px">
+        <button class="btn btn-ghost" onclick="copiarGistId()" title="Copiar ID">📋</button>
+      </div>
+    </div>
+
+    <div id="sync-estado" style="font-size:12px;color:var(--text2);min-height:18px;margin-bottom:12px"></div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn btn-primario" onclick="sincronizarPush()" id="btn-push">
+        ⬆️ Push (subir al Gist)
+      </button>
+      <button class="btn btn-ghost" onclick="sincronizarPull()" id="btn-pull">
+        ⬇️ Pull (descargar y fusionar)
+      </button>
+    </div>
+    <p style="font-size:11px;color:var(--text2)">
+      <strong>Push</strong> sube tus datos actuales al Gist (sobrescribe el Gist).<br>
+      <strong>Pull</strong> descarga el Gist y fusiona con tus datos locales — gana el mensaje más reciente.
+    </p>
+
+    <div class="modal-pie">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-sync')">Cerrar</button>
+      <button class="btn btn-primario" onclick="guardarConfigSync()">Guardar configuración</button>
+    </div>
+  </div>
+</div>
+
+<!-- DRAG & DROP OVERLAY -->
+<div id="drop-overlay">
+  <div class="drop-mensaje">🖼️ Suelta aquí para adjuntar<br><span style="font-size:14px;font-weight:400;opacity:0.7">Se añadirá a tu mensaje</span></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ==================== JAVASCRIPT ==================== -->
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+<script>
+'use strict';
+
+// ============================================================
+// MODELOS DISPONIBLES
+// ============================================================
+const MODELOS = [
+  { id: 'openai/gpt-4o-2024-11-20', nombre: 'GPT-4o (Nov 2024)' },
+  { id: 'deepseek/deepseek-chat-v3-0324', nombre: 'DeepSeek Chat' },
+  { id: 'anthropic/claude-sonnet-4-6', nombre: 'Claude Sonnet 4.6' },
+  { id: 'google/gemini-2.0-flash-001', nombre: 'Gemini 2.0 Flash' },
+  { id: 'moonshotai/kimi-k2', nombre: 'Kimi K2' },
+  { id: 'qwen/qwen3-235b-a22b', nombre: 'Qwen3 235B' },
+  { id: 'perplexity/sonar', nombre: '🌐 Perplexity Sonar (internet)' },
+  { id: 'perplexity/sonar-pro', nombre: '🌐 Perplexity Sonar Pro (internet)' },
+];
+
+// Modelo usado para búsqueda web nativa
+const MODELO_WEB = 'perplexity/sonar';
+
+// ============================================================
+// ESTADO DE LA APLICACIÓN
+// ============================================================
+const ESTADO_INICIAL = {
+  apiKey: '',
+  systemPrompt: '',
+  nombreAI: 'AI',
+  nombreUsuario: 'Tú',
+  temperatura: 1.0,
+  repPenalty: 1.15,
+  maxTokens: 1024,
+  mensajesContexto: 8,
+  maxMemorias: 3,
+  modeloActual: 'openai/gpt-4o-2024-11-20',
+  modelosCustom: [],
+  chats: [],
+  memorias: [],
+  chatActivoId: null,
+  gistToken: '',
+  gistId: '',
+};
+
+let E = { ...ESTADO_INICIAL }; // Estado global
+let abortCtrl = null;
+let timerGuardado = null;
+
+// ============================================================
+// BASE DE DATOS (IndexedDB)
+// ============================================================
+let idb = null;
+
+function iniciarDB() {
+  return new Promise((ok, err) => {
+    const req = indexedDB.open('mi_chat_ia_db', 1);
+    req.onupgradeneeded = e => {
+      e.target.result.createObjectStore('kv', { keyPath: 'k' });
+    };
+    req.onsuccess = e => { idb = e.target.result; ok(); };
+    req.onerror = () => err(req.error);
+  });
+}
+
+function dbGet(clave) {
+  return new Promise(ok => {
+    const tx = idb.transaction('kv', 'readonly');
+    const req = tx.objectStore('kv').get(clave);
+    req.onsuccess = () => ok(req.result?.v);
+    req.onerror = () => ok(null);
+  });
+}
+
+function dbSet(clave, valor) {
+  if (!idb) return;
+  const tx = idb.transaction('kv', 'readwrite');
+  tx.objectStore('kv').put({ k: clave, v: valor });
+}
+
+async function cargarEstado() {
+  const guardado = await dbGet('estado');
+  if (guardado) E = { ...ESTADO_INICIAL, ...guardado };
+}
+
+function guardarEstado() {
+  clearTimeout(timerGuardado);
+  timerGuardado = setTimeout(() => dbSet('estado', E), 300);
+}
+
+// ============================================================
+// UTILIDADES
+// ============================================================
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function fechaCorta(ts) {
+  const d = new Date(ts);
+  const hoy = new Date();
+  if (d.toDateString() === hoy.toDateString()) {
+    return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+}
+
+function mostrarToast(msg, ms = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('visible');
+  setTimeout(() => el.classList.remove('visible'), ms);
+}
+
+function descargarArchivo(contenido, nombre, tipo) {
+  const blob = new Blob([contenido], { type: tipo });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nombre; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ============================================================
+// MARKDOWN RENDERER (sin dependencias)
+// ============================================================
+function renderMD(texto) {
+  // Proteger bloques de código
+  const codigos = [];
+  let idx = 0;
+
+  let t = texto.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const token = `\x00CODE${idx++}\x00`;
+    codigos.push(`<pre><code>${esc(code.replace(/\n$/, ''))}</code></pre>`);
+    return token;
+  });
+
+  // Escape HTML del texto normal
+  t = t
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Headers
+  t = t.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  t = t.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  t = t.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+  // Horizontal rule
+  t = t.replace(/^---+$/gm, '<hr>');
+
+  // Blockquote
+  t = t.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+
+  // Bold & Italic
+  t = t.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/__(.+?)__/g, '<strong>$1</strong>');
+  t = t.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  t = t.replace(/_(.+?)_/g, '<em>$1</em>');
+
+  // Inline code
+  t = t.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
+
+  // Listas no ordenadas
+  t = t.replace(/^[*\-] (.+)$/gm, '<li>$1</li>');
+  t = t.replace(/(<li>[\s\S]*?<\/li>)(\n<li>[\s\S]*?<\/li>)*/g, m => `<ul>${m}</ul>`);
+
+  // Listas ordenadas
+  t = t.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+  // Párrafos (doble salto)
+  const parrafos = t.split(/\n{2,}/);
+  t = parrafos.map(p => {
+    p = p.trim();
+    if (!p) return '';
+    const blocky = /^(<h[1-3]|<ul|<ol|<li|<hr|<blockquote|\x00CODE)/.test(p);
+    if (blocky) return p.replace(/\n/g, '');
+    return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
+  }).join('\n');
+
+  // Restaurar bloques de código
+  codigos.forEach((html, i) => {
+    t = t.replace(new RegExp(`\x00CODE${i}\x00`, 'g'), html);
+    t = t.replace(new RegExp(`<p>\x00CODE${i}\x00</p>`, 'g'), html);
+  });
+
+  return t;
+}
+
+// ============================================================
+// SISTEMA DE MEMORIAS
+// ============================================================
+function normalizarTexto(txt) {
+  return txt.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ');
+}
+
+function obtenerMemoriasRelevantes(mensajeUsuario) {
+  const msgNorm = normalizarTexto(mensajeUsuario);
+  const activas = E.memorias.filter(m => m.activa);
+  const fijadas = activas.filter(m => m.fijada);
+  const normales = activas.filter(m => !m.fijada);
+
+  // Coincidencias por keywords
+  const orden = { alta: 3, media: 2, baja: 1 };
+  const coinc = normales
+    .filter(m => m.keywords.some(k => k && msgNorm.includes(normalizarTexto(k))))
+    .sort((a, b) => (orden[b.prioridad] || 1) - (orden[a.prioridad] || 1));
+
+  const resultado = [...fijadas];
+  for (const m of coinc) {
+    if (resultado.length >= E.maxMemorias) break;
+    if (!resultado.find(r => r.id === m.id)) resultado.push(m);
+  }
+  return resultado.slice(0, E.maxMemorias);
+}
+
+function bloqueMemoria(memorias) {
+  if (!memorias.length) return null;
+  return '[MEMORIAS RELEVANTES]\n\n' +
+    memorias.map(m => `## ${m.nombre}\n${m.contenido}`).join('\n\n---\n\n');
+}
+
+// ============================================================
+// GESTIÓN DE CHATS
+// ============================================================
+function chatActual() {
+  return E.chats.find(c => c.id === E.chatActivoId) || null;
+}
+
+function nuevoChat() {
+  const chat = {
+    id: uid(),
+    titulo: 'Nuevo chat',
+    mensajes: [],
+    modelo: E.modeloActual,
+    creadoEn: Date.now(),
+    actualizadoEn: Date.now(),
+  };
+  E.chats.unshift(chat);
+  E.chatActivoId = chat.id;
+  guardarEstado();
+  renderApp();
+  document.getElementById('campo-msg').focus();
+  // En móvil cerrar sidebar
+  document.getElementById('sidebar').classList.remove('abierto');
+  document.getElementById('sidebar-backdrop').style.display = 'none';
+}
+
+function seleccionarChat(id) {
+  E.chatActivoId = id;
+  guardarEstado();
+  renderMensajes();
+  renderListaChats();
+  document.getElementById('selector-modelo').value = chatActual()?.modelo || E.modeloActual;
+  document.getElementById('sidebar').classList.remove('abierto');
+  document.getElementById('sidebar-backdrop').style.display = 'none';
+}
+
+function eliminarChat(id, e) {
+  e.stopPropagation();
+  if (!confirm('¿Eliminar este chat?')) return;
+  E.chats = E.chats.filter(c => c.id !== id);
+  if (E.chatActivoId === id) {
+    E.chatActivoId = E.chats[0]?.id || null;
+  }
+  guardarEstado();
+  renderApp();
+}
+
+// ============================================================
+// ADJUNTOS — IMÁGENES
+// ============================================================
+let pendingImages = []; // [{ dataUrl, nombre }]
+
+function agregarImagenes(input) {
+  const files = Array.from(input.files).filter(f => f.type.startsWith('image/'));
+  procesarImagenes(files);
+  input.value = '';
+}
+
+// ============================================================
+// ADJUNTOS — DOCUMENTOS
+// ============================================================
+let pendingDocs = []; // [{ nombre, texto, icono }]
+
+const DOC_ICONOS = {
+  docx: '📝', doc: '📝', txt: '📄', md: '📋', csv: '📊', json: '🗂️'
+};
+
+function agregarArchivos(input) {
+  const files = Array.from(input.files);
+  files.forEach(procesarArchivo);
+  input.value = '';
+}
+
+function procesarArchivo(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const icono = DOC_ICONOS[ext] || '📄';
+
+  if (['txt', 'md', 'csv', 'json'].includes(ext)) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      pendingDocs.push({ nombre: file.name, texto: e.target.result, icono });
+      renderPreviewAdjuntos();
+      mostrarToast(`📄 "${file.name}" listo`);
+    };
+    reader.readAsText(file, 'UTF-8');
+  } else if (['docx', 'doc'].includes(ext)) {
+    if (typeof mammoth === 'undefined') { mostrarToast('⚠️ Librería no cargada, comprueba conexión', 3000); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      mammoth.extractRawText({ arrayBuffer: e.target.result })
+        .then(result => {
+          pendingDocs.push({ nombre: file.name, texto: result.value, icono });
+          renderPreviewAdjuntos();
+          mostrarToast(`📝 "${file.name}" listo`);
+        })
+        .catch(() => mostrarToast(`❌ No se pudo leer "${file.name}"`, 3000));
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    mostrarToast(`⚠️ Formato no soportado: .${ext}`, 3000);
+  }
+}
+
+function eliminarDoc(idx) {
+  pendingDocs.splice(idx, 1);
+  renderPreviewAdjuntos();
+}
+
+function procesarImagenes(files) {
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      redimensionarImagen(e.target.result, 1024, dataUrl => {
+        pendingImages.push({ dataUrl, nombre: file.name });
+        renderPreviewAdjuntos();
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Drag & Drop global
+let _dragCount = 0;
+document.addEventListener('dragenter', e => {
+  if (!e.dataTransfer.types.includes('Files')) return;
+  _dragCount++;
+  document.getElementById('drop-overlay').classList.add('visible');
+});
+document.addEventListener('dragleave', () => {
+  _dragCount--;
+  if (_dragCount <= 0) { _dragCount = 0; document.getElementById('drop-overlay').classList.remove('visible'); }
+});
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  _dragCount = 0;
+  document.getElementById('drop-overlay').classList.remove('visible');
+  const imgs = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+  if (imgs.length) { procesarImagenes(imgs); mostrarToast(`📎 ${imgs.length} imagen${imgs.length > 1 ? 'es' : ''} adjunta${imgs.length > 1 ? 's' : ''}`); }
+});
+
+function redimensionarImagen(dataUrl, maxPx, callback) {
+  const img = new Image();
+  img.onload = () => {
+    const ratio = Math.min(1, maxPx / Math.max(img.width, img.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.width * ratio);
+    canvas.height = Math.round(img.height * ratio);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    callback(canvas.toDataURL('image/jpeg', 0.85));
+  };
+  img.src = dataUrl;
+}
+
+function eliminarImagen(idx) {
+  pendingImages.splice(idx, 1);
+  renderPreviewAdjuntos();
+}
+
+function renderPreviewAdjuntos() {
+  const area = document.getElementById('preview-adjuntos');
+  if (!pendingImages.length && !pendingDocs.length) { area.innerHTML = ''; return; }
+  const imgs = pendingImages.map((img, i) => `
+    <div class="thumb-wrap">
+      <img src="${img.dataUrl}" alt="${esc(img.nombre)}" onclick="abrirLightbox('${img.dataUrl}')">
+      <button class="thumb-borrar" onclick="eliminarImagen(${i})" title="Quitar">✕</button>
+    </div>`).join('');
+  const docs = pendingDocs.map((doc, i) => `
+    <div class="doc-wrap">
+      <span class="doc-icono">${doc.icono}</span>
+      <span class="doc-nombre" title="${esc(doc.nombre)}">${esc(doc.nombre)}</span>
+      <button class="doc-borrar" onclick="eliminarDoc(${i})" title="Quitar">✕</button>
+    </div>`).join('');
+  area.innerHTML = imgs + docs;
+}
+
+function abrirLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('visible');
+}
+
+// ============================================================
+// BÚSQUEDA WEB — JINA AI
+// ============================================================
+let webModeActivo = false;
+let modeloAnteriorAlWeb = null; // para restaurar al desactivar
+
+function toggleMenuAdjuntos(e) {
+  e.stopPropagation();
+  document.getElementById('menu-adjuntos').classList.toggle('visible');
+}
+document.addEventListener('click', () => {
+  document.getElementById('menu-adjuntos')?.classList.remove('visible');
+});
+
+function toggleWebSearch() {
+  webModeActivo = !webModeActivo;
+  const btn = document.getElementById('btn-web');
+  const ind = document.getElementById('indicador-busqueda');
+  btn.classList.toggle('activo', webModeActivo);
+  ind.style.display = webModeActivo ? 'flex' : 'none';
+
+  if (webModeActivo) {
+    // Guardar modelo actual y cambiar a Perplexity
+    modeloAnteriorAlWeb = E.modeloActual;
+    E.modeloActual = MODELO_WEB;
+    renderSelectorModelo();
+    mostrarToast('🌐 Modo web activo — usando Perplexity Sonar');
+  } else {
+    // Restaurar modelo anterior
+    if (modeloAnteriorAlWeb) {
+      E.modeloActual = modeloAnteriorAlWeb;
+      modeloAnteriorAlWeb = null;
+    }
+    renderSelectorModelo();
+    mostrarToast('Búsqueda web desactivada');
+  }
+  guardarEstado();
+}
+
+// ============================================================
+// API — OPENROUTER CON STREAMING
+// ============================================================
+async function enviarMensaje() {
+  const campo = document.getElementById('campo-msg');
+  const texto = campo.value.trim();
+  if (!texto && !pendingImages.length && !pendingDocs.length) return;
+  if (!E.apiKey) { mostrarToast('⚠️ Configura tu API key en Ajustes'); return; }
+
+  // Si no hay chat activo, crear uno
+  if (!E.chatActivoId) nuevoChat();
+  const chat = chatActual();
+
+  campo.value = '';
+  autoAltura(campo);
+
+  // Guardar imágenes adjuntas y limpiar preview
+  const imagenesAdjuntas = pendingImages.map(i => i.dataUrl);
+  pendingImages = [];
+
+  // Construir contenido con documentos adjuntos
+  const docsAdjuntos = [...pendingDocs];
+  pendingDocs = [];
+  renderPreviewAdjuntos();
+
+  let contenidoFinal = texto;
+  if (docsAdjuntos.length) {
+    const bloquesDocs = docsAdjuntos.map(d =>
+      `[ARCHIVO ADJUNTO: ${d.nombre}]\n${d.texto.slice(0, 40000)}\n[FIN DE ARCHIVO]`
+    ).join('\n\n');
+    contenidoFinal = contenidoFinal ? contenidoFinal + '\n\n' + bloquesDocs : bloquesDocs;
+  }
+
+  // Mensaje del usuario (con imágenes si las hay)
+  const msgUser = {
+    id: uid(),
+    rol: 'user',
+    contenido: contenidoFinal,
+    imagenes: imagenesAdjuntas,
+    ts: Date.now(),
+  };
+  chat.mensajes.push(msgUser);
+
+  // Auto-título
+  if (chat.mensajes.filter(m => m.rol === 'user').length === 1) {
+    const tituloBase = texto || (imagenesAdjuntas.length ? `[${imagenesAdjuntas.length} imagen(es)]` : 'Chat');
+    chat.titulo = tituloBase.slice(0, 45) + (tituloBase.length > 45 ? '…' : '');
+  }
+
+  chat.actualizadoEn = Date.now();
+  guardarEstado();
+  renderMensajes();
+  renderListaChats();
+
+  // Calcular memorias relevantes
+  const mems = obtenerMemoriasRelevantes(texto);
+  actualizarInfoMemorias(mems);
+
+  // Construir mensajes para API
+  const mensajesAPI = construirMensajesAPI(chat, mems);
+
+  // UI: estado de carga
+  toggleCargando(true);
+  abortCtrl = new AbortController();
+
+  let respuestaCompleta = '';
+  let truncado = false;
+
+  try {
+    const cuerpo = {
+      model: E.modeloActual,
+      messages: mensajesAPI,
+      stream: true,
+      temperature: E.temperatura,
+      repetition_penalty: E.repPenalty,
+      max_tokens: E.maxTokens,
+    };
+
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${E.apiKey}`,
+        'HTTP-Referer': location.href,
+        'X-Title': 'Mi Chat IA',
+      },
+      body: JSON.stringify(cuerpo),
+      signal: abortCtrl.signal,
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `Error HTTP ${resp.status}`);
+    }
+
+    // Quitar indicador de typing, crear burbuja IA
+    quitarTyping();
+    const msgAI = { id: uid(), rol: 'assistant', contenido: '', ts: Date.now() };
+    chat.mensajes.push(msgAI);
+    const bubbleId = 'burbuja-' + msgAI.id;
+    crearBurbujaIA(bubbleId);
+
+    // Leer SSE stream
+    ({ texto: respuestaCompleta, truncado } = await _streamRespuesta(
+      resp.body, bubbleId, abortCtrl.signal,
+      txt => actualizarBurbujaIA(bubbleId, txt, false)
+    ));
+    msgAI.contenido = respuestaCompleta;
+    chat.actualizadoEn = Date.now();
+    guardarEstado();
+    actualizarBurbujaIA(bubbleId, respuestaCompleta, true);
+    if (truncado) mostrarBotonContinuar(bubbleId);
+    renderListaChats();
+
+  } catch (err) {
+    quitarTyping();
+    if (err.name !== 'AbortError') {
+      const msgErr = { id: uid(), rol: 'error', contenido: 'Error: ' + err.message, ts: Date.now() };
+      chat.mensajes.push(msgErr);
+      guardarEstado();
+      renderMensajes();
+      mostrarToast('❌ ' + err.message, 4000);
+    } else {
+      // Guardar lo que se generó parcialmente
+      if (respuestaCompleta) {
+        const ultimo = chat.mensajes.findLast(m => m.rol === 'assistant');
+        if (ultimo && !ultimo.contenido) {
+          ultimo.contenido = respuestaCompleta + ' [detenido]';
+          guardarEstado();
+          const bubbleId = 'burbuja-' + ultimo.id;
+          actualizarBurbujaIA(bubbleId, ultimo.contenido, true);
+        }
+      }
+    }
+  } finally {
+    toggleCargando(false);
+    abortCtrl = null;
+    scrollAbajo();
+  }
+}
+
+function construirMensajesAPI(chat, mems) {
+  const mensajes = [];
+
+  // System prompt + memorias
+  let sys = E.systemPrompt || '';
+  const bloque = bloqueMemoria(mems);
+  if (bloque) sys = sys ? sys + '\n\n' + bloque : bloque;
+  // Fecha y hora actual
+  const _ahora = new Date();
+  const _fechaHora = _ahora.toLocaleString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  sys = `[Fecha y hora actual: ${_fechaHora}]` + (sys ? '\n\n' + sys : '');
+  // Instrucción silenciosa anti-truncado
+  const antiTruncado = '\n\n[FORMATO: Si tu respuesta es larga, divídela en secciones con encabezados claros. Si te acercas al límite de longitud, cierra la sección actual con una conclusión breve y termina la frase. Nunca dejes texto incompleto ni mezcles idiomas.]';
+  sys = (sys + antiTruncado).trim();
+  mensajes.push({ role: 'system', content: sys });
+
+  // Últimos N mensajes (sin errores)
+  const validos = chat.mensajes.filter(m => m.rol !== 'error');
+  const contexto = validos.slice(-E.mensajesContexto);
+
+  for (const m of contexto) {
+    if (m.rol === 'user' && m.imagenes && m.imagenes.length > 0) {
+      // Formato multimodal para mensajes con imágenes
+      const partes = [];
+      if (m.contenido) partes.push({ type: 'text', text: m.contenido });
+      m.imagenes.forEach(dataUrl => {
+        partes.push({ type: 'image_url', image_url: { url: dataUrl } });
+      });
+      mensajes.push({ role: 'user', content: partes });
+    } else {
+      mensajes.push({ role: m.rol, content: m.contenido });
+    }
+  }
+
+  return mensajes;
+}
+
+function detenerGeneracion() {
+  if (abortCtrl) { abortCtrl.abort(); mostrarToast('Generación detenida'); }
+}
+
+// ============================================================
+// STREAMING SSE â LÓGICA COMPARTIDA
+// ============================================================
+async function _streamRespuesta(respBody, bubbleId, signal, onChunk) {
+  const reader = respBody.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  let texto = '';
+  let truncado = false;
+
+  outer: while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lineas = buf.split('\n');
+    buf = lineas.pop();
+
+    for (const linea of lineas) {
+      if (!linea.startsWith('data: ')) continue;
+      const raw = linea.slice(6).trim();
+      if (raw === '[DONE]') { buf = ''; break outer; }
+      try {
+        const json = JSON.parse(raw);
+        const delta = json.choices?.[0]?.delta?.content;
+        const finRazon = json.choices?.[0]?.finish_reason;
+        if (finRazon === 'length') truncado = true;
+        if (delta) {
+          texto += delta;
+          if (detectarTextoCorrupto(texto)) { truncado = true; reader.cancel(); break outer; }
+          onChunk(texto);
+        }
+      } catch { /* chunk inválido, ignorar */ }
+    }
+  }
+
+  // Recortar texto corrupto al último punto limpio
+  if (truncado && detectarTextoCorrupto(texto)) {
+    // Buscar primer carácter no-latino problemático
+    const corte = texto.search(/[\u0370-\u03FF\u0400-\u04FF\u0600-\u06FF\u4E00-\u9FFF\uAC00-\uD7AF\u05D0-\u05FF]/);
+    if (corte > 80) texto = texto.slice(0, corte).trimEnd();
+  }
+
+  return { texto, truncado };
+}
+
+function detectarTextoCorrupto(texto) {
+  const muestra = texto.slice(-200);
+  const esLatinoPrincipal = /^[\x00-\x7F\u00C0-\u024F\s.,!?;:()\-"'«»]+/.test(texto.slice(0, 80));
+
+  // 1. Dos o más scripts no-latinos presentes a la vez (incluye griego)
+  const scripts = [
+    /[\u0370-\u03FF]/, // Griego
+    /[\u0400-\u04FF]/, // Cirílico
+    /[\u0600-\u06FF]/, // Árabe
+    /[\u4E00-\u9FFF]/, // CJK (chino/japonés)
+    /[\uAC00-\uD7AF]/, // Coreano
+    /[\u0900-\u097F]/, // Devanagari
+    /[\u05D0-\u05FF]/, // Hebreo
+    /[\u0E00-\u0E7F]/, // Tailandés
+  ];
+  if (esLatinoPrincipal && scripts.filter(rx => rx.test(muestra)).length >= 2) return true;
+
+  // 2. Letras latinas pegadas a caracteres griegos/cirílicos dentro de la misma "palabra"
+  if (esLatinoPrincipal && /[a-zA-Z]{2,}[\u0370-\u04FF]|[\u0370-\u04FF][a-zA-Z]{2,}/.test(muestra)) return true;
+
+  // 3. Alto ratio de palabras sin sentido (muy pocas o ninguna vocal)
+  const palabras = muestra.match(/\b[a-zA-Z]{5,}\b/g) || [];
+  if (palabras.length >= 6) {
+    const gibberish = palabras.filter(p => {
+      const v = (p.match(/[aeiouAEIOU]/g) || []).length / p.length;
+      return v < 0.15 || v > 0.88;
+    });
+    if (gibberish.length / palabras.length > 0.55) return true;
+  }
+
+  // 4. Bucle de repetición: un segmento corto que aparece 3+ veces seguidas
+  for (let len = 10; len <= 50; len++) {
+    const seg = muestra.slice(-len * 3, -len * 2);
+    if (seg.length === len && muestra.split(seg).length - 1 >= 3) return true;
+  }
+
+  return false;
+}
+
+// ============================================================
+// RENDER MENSAJES
+// ============================================================
+function renderMensajes() {
+  const area = document.getElementById('area-mensajes');
+  const chat = chatActual();
+
+  if (!chat || !chat.mensajes.length) {
+    area.innerHTML = `
+      <div class="empty-state">
+        <div class="icono-grande">💬</div>
+        <h3>¡Hola!</h3>
+        <p>Escribe algo para comenzar a chatear con <strong>${esc(E.nombreAI)}</strong>.</p>
+        ${!E.systemPrompt ? '<p style="color:var(--danger);font-size:12px;margin-top:8px">⚠️ Recuerda configurar tu System Prompt en Ajustes para darle personalidad a tu IA.</p>' : ''}
+      </div>`;
+    return;
+  }
+
+  area.innerHTML = chat.mensajes.map(m => {
+    if (m.rol === 'user') {
+      const imgs = (m.imagenes && m.imagenes.length)
+        ? `<div class="chat-imagenes">${m.imagenes.map(src =>
+            `<img class="chat-img" src="${src}" alt="imagen adjunta" onclick="abrirLightbox('${src}')">`
+          ).join('')}</div>`
+        : '';
+      const textoHtml = m.contenido ? `<div>${esc(m.contenido).replace(/\n/g, '<br>')}</div>` : '';
+      return `<div class="burbuja burbuja-usuario">${imgs}${textoHtml}</div>`;
+    } else if (m.rol === 'assistant') {
+      return `<div class="burbuja burbuja-ai" id="burbuja-${m.id}">${renderMD(m.contenido)}</div>`;
+    } else if (m.rol === 'error') {
+      return `<div class="burbuja burbuja-error">⚠️ ${esc(m.contenido)}</div>`;
+    }
+    return '';
+  }).join('');
+
+  scrollAbajo();
+}
+
+function crearBurbujaIA(id) {
+  const area = document.getElementById('area-mensajes');
+  const div = document.createElement('div');
+  div.className = 'burbuja burbuja-ai';
+  div.id = id;
+  div.innerHTML = '<span class="cursor-ia"></span>';
+  area.appendChild(div);
+  scrollAbajo();
+}
+
+function actualizarBurbujaIA(id, texto, esFinal) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (esFinal) {
+    el.innerHTML = renderMD(texto);
+  } else {
+    el.innerHTML = esc(texto).replace(/\n/g, '<br>') + '<span class="cursor-ia"></span>';
+  }
+  scrollAbajo();
+}
+
+function mostrarBotonContinuar(bubbleId) {
+  const burbuja = document.getElementById(bubbleId);
+  if (!burbuja) return;
+  const btn = document.createElement('button');
+  btn.className = 'btn-continuar';
+  btn.textContent = 'Continuar →';
+  btn.onclick = () => { btn.remove(); continuarRespuesta(); };
+  burbuja.insertAdjacentElement('afterend', btn);
+  scrollAbajo();
+}
+
+async function continuarRespuesta() {
+  const chat = chatActual();
+  if (!chat || abortCtrl) return;
+
+  const msgCont = { id: uid(), rol: 'user', contenido: 'Continúa exactamente donde lo dejaste, sin repetir nada de lo anterior.', imagenes: [], ts: Date.now() };
+  chat.mensajes.push(msgCont);
+  chat.actualizadoEn = Date.now();
+  guardarEstado();
+  renderMensajes();
+
+  const mems = obtenerMemoriasRelevantes('');
+  const mensajesAPI = construirMensajesAPI(chat, mems);
+
+  toggleCargando(true);
+  abortCtrl = new AbortController();
+  let respuestaCompleta = '';
+  let truncado = false;
+
+  try {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${E.apiKey}`,
+        'HTTP-Referer': location.href,
+        'X-Title': 'Mi Chat IA',
+      },
+      body: JSON.stringify({
+        model: E.modeloActual,
+        messages: mensajesAPI,
+        stream: true,
+        temperature: E.temperatura,
+        repetition_penalty: E.repPenalty,
+        max_tokens: E.maxTokens,
+      }),
+      signal: abortCtrl.signal,
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `Error HTTP ${resp.status}`);
+    }
+
+    quitarTyping();
+    const msgAI = { id: uid(), rol: 'assistant', contenido: '', ts: Date.now() };
+    chat.mensajes.push(msgAI);
+    const bubbleId = 'burbuja-' + msgAI.id;
+    crearBurbujaIA(bubbleId);
+
+    ({ texto: respuestaCompleta, truncado } = await _streamRespuesta(
+      resp.body, bubbleId, abortCtrl.signal,
+      txt => actualizarBurbujaIA(bubbleId, txt, false)
+    ));
+    msgAI.contenido = respuestaCompleta;
+    chat.actualizadoEn = Date.now();
+    guardarEstado();
+    actualizarBurbujaIA(bubbleId, respuestaCompleta, true);
+    if (truncado) mostrarBotonContinuar(bubbleId);
+    renderListaChats();
+
+  } catch (err) {
+    quitarTyping();
+    if (err.name !== 'AbortError') {
+      chat.mensajes.push({ id: uid(), rol: 'error', contenido: 'Error: ' + err.message, ts: Date.now() });
+      guardarEstado();
+      renderMensajes();
+      mostrarToast('❌ ' + err.message, 4000);
+    }
+  } finally {
+    toggleCargando(false);
+    abortCtrl = null;
+    scrollAbajo();
+  }
+}
+
+function toggleCargando(activo) {
+  document.getElementById('btn-enviar').style.display = activo ? 'none' : 'flex';
+  document.getElementById('btn-parar').style.display = activo ? 'flex' : 'none';
+  if (activo) mostrarTyping();
+}
+
+function mostrarTyping() {
+  if (document.getElementById('typing-dots')) return;
+  const area = document.getElementById('area-mensajes');
+  const div = document.createElement('div');
+  div.id = 'typing-dots';
+  div.className = 'typing-dots';
+  div.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  area.appendChild(div);
+  scrollAbajo();
+}
+
+function quitarTyping() {
+  document.getElementById('typing-dots')?.remove();
+}
+
+function scrollAbajo() {
+  const area = document.getElementById('area-mensajes');
+  area.scrollTop = area.scrollHeight;
+}
+
+function actualizarInfoMemorias(mems) {
+  const el = document.getElementById('info-memorias');
+  el.textContent = mems.length ? '🧠 ' + mems.map(m => m.nombre).join(' · ') : '';
+}
+
+// ============================================================
+// RENDER LISTA CHATS
+// ============================================================
+function renderListaChats() {
+  const lista = document.getElementById('lista-chats');
+  if (!E.chats.length) {
+    lista.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text2);font-size:12px">Sin chats. Pulsa ＋ para empezar.</div>';
+    return;
+  }
+  lista.innerHTML = E.chats.map(c => `
+    <div class="chat-item ${c.id === E.chatActivoId ? 'activo' : ''}" onclick="seleccionarChat('${c.id}')">
+      <div class="chat-item-texto">
+        <div class="chat-item-titulo">${esc(c.titulo)}</div>
+        <div class="chat-item-fecha">${fechaCorta(c.actualizadoEn)}</div>
+      </div>
+      <button class="chat-item-borrar" onclick="eliminarChat('${c.id}',event)" title="Eliminar">✕</button>
+    </div>
+  `).join('');
+}
+
+function renderSelectorModelo() {
+  const sel = document.getElementById('selector-modelo');
+  const todos = [...MODELOS, ...E.modelosCustom];
+  sel.innerHTML = todos.map(m =>
+    `<option value="${esc(m.id)}" ${m.id === E.modeloActual ? 'selected' : ''}>${esc(m.nombre || m.id)}</option>`
+  ).join('');
+}
+
+function cambiarModelo(id) {
+  E.modeloActual = id;
+  if (chatActual()) chatActual().modelo = id;
+  guardarEstado();
+}
+
+function renderApp() {
+  renderListaChats();
+  renderMensajes();
+  renderSelectorModelo();
+}
+
+// ============================================================
+// INPUT
+// ============================================================
+function manejarTecla(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    enviarMensaje();
+  }
+}
+
+function autoAltura(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+}
+
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebar-backdrop');
+  // En desktop: colapsar/expandir
+  if (window.innerWidth > 640) {
+    sb.classList.toggle('colapsado');
+  } else {
+    // En móvil: slide con backdrop
+    const abierto = sb.classList.toggle('abierto');
+    bd.style.display = abierto ? 'block' : 'none';
+  }
+}
+
+// ============================================================
+// MODALES
+// ============================================================
+function abrirModal(id) {
+  if (id === 'modal-ajustes') cargarFormAjustes();
+  if (id === 'modal-memorias') renderListaMemorias();
+  if (id === 'modal-sync') abrirModalSync();
+  document.getElementById(id).classList.add('visible');
+}
+
+function cerrarModal(id) {
+  document.getElementById(id).classList.remove('visible');
+}
+
+function clickFuera(e, id) {
+  if (e.target.id === id) cerrarModal(id);
+}
+
+// ============================================================
+// AJUSTES
+// ============================================================
+function cargarFormAjustes() {
+  document.getElementById('aj-api-key').value = E.apiKey;
+  document.getElementById('aj-nombre-ai').value = E.nombreAI;
+  document.getElementById('aj-nombre-usuario').value = E.nombreUsuario;
+  document.getElementById('aj-system-prompt').value = E.systemPrompt;
+
+  const slT = document.getElementById('aj-temperatura');
+  slT.value = E.temperatura;
+  document.getElementById('lbl-temp').textContent = E.temperatura.toFixed(2);
+
+  const slR = document.getElementById('aj-rep-penalty');
+  slR.value = E.repPenalty;
+  document.getElementById('lbl-rep').textContent = E.repPenalty.toFixed(2);
+
+  document.getElementById('aj-contexto').value = E.mensajesContexto;
+  document.getElementById('aj-max-memorias').value = E.maxMemorias;
+  document.getElementById('aj-max-tokens').value = E.maxTokens || 1024;
+
+  renderListaModelosCustom();
+}
+
+function guardarAjustes() {
+  E.apiKey = document.getElementById('aj-api-key').value.trim();
+  E.nombreAI = document.getElementById('aj-nombre-ai').value.trim() || 'AI';
+  E.nombreUsuario = document.getElementById('aj-nombre-usuario').value.trim() || 'Tú';
+  E.systemPrompt = document.getElementById('aj-system-prompt').value;
+  E.temperatura = parseFloat(document.getElementById('aj-temperatura').value) || 1.0;
+  E.repPenalty = parseFloat(document.getElementById('aj-rep-penalty').value) || 1.15;
+  E.mensajesContexto = parseInt(document.getElementById('aj-contexto').value) || 8;
+  E.maxMemorias = parseInt(document.getElementById('aj-max-memorias').value) || 3;
+  E.maxTokens = parseInt(document.getElementById('aj-max-tokens').value) || 2048;
+
+  guardarEstado();
+  cerrarModal('modal-ajustes');
+  mostrarToast('✅ Ajustes guardados');
+}
+
+function agregarModelo() {
+  const id = document.getElementById('nuevo-modelo-input').value.trim();
+  const nombre = document.getElementById('nuevo-modelo-nombre').value.trim() || id;
+  if (!id) return;
+
+  const todos = [...MODELOS, ...E.modelosCustom];
+  if (todos.find(m => m.id === id)) { mostrarToast('Ese modelo ya existe'); return; }
+
+  E.modelosCustom.push({ id, nombre });
+  document.getElementById('nuevo-modelo-input').value = '';
+  document.getElementById('nuevo-modelo-nombre').value = '';
+  guardarEstado();
+  renderListaModelosCustom();
+  renderSelectorModelo();
+  mostrarToast('✅ Modelo añadido');
+}
+
+function eliminarModeloCustom(id) {
+  E.modelosCustom = E.modelosCustom.filter(m => m.id !== id);
+  if (E.modeloActual === id) E.modeloActual = MODELOS[0].id;
+  guardarEstado();
+  renderListaModelosCustom();
+  renderSelectorModelo();
+}
+
+function renderListaModelosCustom() {
+  const el = document.getElementById('lista-modelos-custom');
+  if (!E.modelosCustom.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div style="margin-top:10px">' +
+    E.modelosCustom.map(m => `
+      <div class="modelo-item">
+        <span style="flex:1">${esc(m.nombre)} <span style="color:var(--text2);font-size:11px">(${esc(m.id)})</span></span>
+        <button class="btn-icono peligro" onclick="eliminarModeloCustom('${esc(m.id)}')" title="Eliminar">✕</button>
+      </div>`).join('') + '</div>';
+}
+
+// ============================================================
+// MEMORIAS
+// ============================================================
+function renderListaMemorias() {
+  const lista = document.getElementById('lista-memorias-modal');
+  if (!E.memorias.length) {
+    lista.innerHTML = '<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:13px">Sin memorias todavía.<br>Crea una con el botón de arriba.</div>';
+    return;
+  }
+  lista.innerHTML = E.memorias.map(m => `
+    <div class="memoria-card">
+      <div class="memoria-info">
+        <div class="memoria-nombre">
+          ${m.fijada ? '📌 ' : ''}${esc(m.nombre)}
+          <span class="badge badge-${m.prioridad}">${m.prioridad}</span>
+          ${!m.activa ? '<span style="color:var(--text2);font-size:11px">(inactiva)</span>' : ''}
+        </div>
+        <div class="memoria-keywords">🏷️ ${m.keywords.length ? m.keywords.join(', ') : 'sin palabras clave'}</div>
+      </div>
+      <div class="memoria-acciones">
+        <button class="btn-icono" onclick="abrirEditorMemoria('${m.id}')" title="Editar">✏️</button>
+        <button class="btn-icono peligro" onclick="eliminarMemoria('${m.id}')" title="Eliminar">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function abrirEditorMemoria(id) {
+  cerrarModal('modal-memorias');
+
+  document.getElementById('editor-id').value = id || '';
+  if (id) {
+    const m = E.memorias.find(m => m.id === id);
+    if (!m) return;
+    document.getElementById('editor-titulo').textContent = 'Editar memoria';
+    document.getElementById('editor-nombre').value = m.nombre;
+    document.getElementById('editor-prioridad').value = m.prioridad;
+    document.getElementById('editor-keywords').value = m.keywords.join(', ');
+    document.getElementById('editor-contenido').value = m.contenido;
+    document.getElementById('editor-fijada').checked = m.fijada;
+    document.getElementById('editor-activa').checked = m.activa;
+  } else {
+    document.getElementById('editor-titulo').textContent = 'Nueva memoria';
+    document.getElementById('editor-nombre').value = '';
+    document.getElementById('editor-prioridad').value = 'media';
+    document.getElementById('editor-keywords').value = '';
+    document.getElementById('editor-contenido').value = '';
+    document.getElementById('editor-fijada').checked = false;
+    document.getElementById('editor-activa').checked = true;
+  }
+
+  abrirModal('modal-editor-memoria');
+}
+
+function volverAMemorias() {
+  cerrarModal('modal-editor-memoria');
+  abrirModal('modal-memorias');
+}
+
+function guardarMemoria() {
+  const nombre = document.getElementById('editor-nombre').value.trim();
+  if (!nombre) { mostrarToast('El nombre es obligatorio'); return; }
+
+  const contenido = document.getElementById('editor-contenido').value.trim();
+  if (!contenido) { mostrarToast('El contenido es obligatorio'); return; }
+
+  const keywords = document.getElementById('editor-keywords').value
+    .split(',').map(k => k.trim()).filter(k => k);
+
+  const id = document.getElementById('editor-id').value;
+  const memoria = {
+    id: id || uid(),
+    nombre,
+    contenido,
+    keywords,
+    prioridad: document.getElementById('editor-prioridad').value,
+    fijada: document.getElementById('editor-fijada').checked,
+    activa: document.getElementById('editor-activa').checked,
+    creadoEn: Date.now(),
+    actualizadoEn: Date.now(),
+  };
+
+  if (id) {
+    const idx = E.memorias.findIndex(m => m.id === id);
+    if (idx !== -1) E.memorias[idx] = { ...E.memorias[idx], ...memoria };
+  } else {
+    E.memorias.unshift(memoria);
+  }
+
+  guardarEstado();
+  cerrarModal('modal-editor-memoria');
+  abrirModal('modal-memorias');
+  mostrarToast('✅ Memoria guardada');
+}
+
+function eliminarMemoria(id) {
+  if (!confirm('¿Eliminar esta memoria?')) return;
+  E.memorias = E.memorias.filter(m => m.id !== id);
+  guardarEstado();
+  renderListaMemorias();
+}
+
+// ============================================================
+// EXPORTAR / IMPORTAR
+// ============================================================
+function exportarMD() {
+  const chat = chatActual();
+  if (!chat?.mensajes.length) { mostrarToast('Sin mensajes para exportar'); return; }
+
+  let md = `# ${chat.titulo}\n\n*Exportado el ${new Date().toLocaleDateString('es-ES')}*\n\n---\n\n`;
+  chat.mensajes.forEach(m => {
+    if (m.rol === 'user') md += `**${E.nombreUsuario}:** ${m.contenido}\n\n`;
+    else if (m.rol === 'assistant') md += `**${E.nombreAI}:** ${m.contenido}\n\n`;
+  });
+
+  const nombre = chat.titulo.replace(/[^a-z0-9áéíóúüñ\s]/gi, '_').slice(0, 40);
+  descargarArchivo(md, `${nombre}.md`, 'text/markdown');
+}
+
+function exportarChatJSON() {
+  const chat = chatActual();
+  if (!chat) { mostrarToast('Sin chat activo'); return; }
+  descargarArchivo(JSON.stringify(chat, null, 2), 'chat.json', 'application/json');
+}
+
+function exportarBackup() {
+  const backup = {
+    version: 2,
+    app: 'Mi Chat IA',
+    exportadoEn: new Date().toISOString(),
+    chats: E.chats,
+    memorias: E.memorias,
+    config: {
+      systemPrompt: E.systemPrompt,
+      nombreAI: E.nombreAI,
+      nombreUsuario: E.nombreUsuario,
+      temperatura: E.temperatura,
+      repPenalty: E.repPenalty,
+      mensajesContexto: E.mensajesContexto,
+      maxMemorias: E.maxMemorias,
+      maxTokens: E.maxTokens,
+      modelosCustom: E.modelosCustom,
+      modeloActual: E.modeloActual,
+    }
+  };
+  descargarArchivo(JSON.stringify(backup, null, 2), 'backup_mi_chat_ia.json', 'application/json');
+  mostrarToast('✅ Backup exportado');
+}
+
+function importarBackup(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const datos = JSON.parse(e.target.result);
+      if (!datos.version) throw new Error('Formato no reconocido');
+
+      // Merge chats
+      if (Array.isArray(datos.chats)) {
+        const existIds = new Set(E.chats.map(c => c.id));
+        datos.chats.forEach(c => { if (!existIds.has(c.id)) E.chats.push(c); });
+        E.chats.sort((a, b) => b.actualizadoEn - a.actualizadoEn);
+      }
+
+      // Merge memorias
+      if (Array.isArray(datos.memorias)) {
+        const existIds = new Set(E.memorias.map(m => m.id));
+        datos.memorias.forEach(m => { if (!existIds.has(m.id)) E.memorias.push(m); });
+      }
+
+      // Config (no sobreescribir API key)
+      if (datos.config) {
+        const c = datos.config;
+        if (c.systemPrompt !== undefined) E.systemPrompt = c.systemPrompt;
+        if (c.nombreAI) E.nombreAI = c.nombreAI;
+        if (c.nombreUsuario) E.nombreUsuario = c.nombreUsuario;
+        if (c.temperatura) E.temperatura = c.temperatura;
+        if (c.repPenalty) E.repPenalty = c.repPenalty;
+        if (c.mensajesContexto) E.mensajesContexto = c.mensajesContexto;
+        if (c.maxMemorias) E.maxMemorias = c.maxMemorias;
+        if (c.maxTokens) E.maxTokens = c.maxTokens;
+        if (Array.isArray(c.modelosCustom)) E.modelosCustom = c.modelosCustom;
+      }
+
+      guardarEstado();
+      renderApp();
+      cerrarModal('modal-exportar');
+      mostrarToast('✅ Backup importado correctamente');
+    } catch (err) {
+      mostrarToast('❌ Error al importar: ' + err.message, 4000);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function confirmarBorrarTodo() {
+  if (!confirm('⚠️ Esto borrará TODOS tus chats, memorias y ajustes. ¿Estás seguro?')) return;
+  if (!confirm('Confirmación final: ¿borrar todo permanentemente?')) return;
+
+  E = { ...ESTADO_INICIAL };
+  dbSet('estado', E);
+  location.reload();
+}
+
+// ============================================================
+// SETUP INICIAL
+// ============================================================
+function completarSetup() {
+  const apiKey = document.getElementById('setup-api-key').value.trim();
+  if (!apiKey) { mostrarToast('⚠️ La API key es obligatoria'); return; }
+
+  E.apiKey = apiKey;
+  E.nombreAI = document.getElementById('setup-nombre-ai').value.trim() || 'AI';
+  E.nombreUsuario = document.getElementById('setup-nombre-usuario').value.trim() || 'Tú';
+  E.systemPrompt = document.getElementById('setup-system-prompt').value;
+
+  guardarEstado();
+
+  document.getElementById('pantalla-inicio').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  renderApp();
+}
+
+// ============================================================
+// REGENERAR RESPUESTA
+// ============================================================
+async function regenerarRespuesta() {
+  const chat = chatActual();
+  if (!chat || abortCtrl) return;
+
+  // Quitar último mensaje de asistente y errores finales
+  while (chat.mensajes.length > 0) {
+    const last = chat.mensajes[chat.mensajes.length - 1];
+    if (last.rol === 'assistant' || last.rol === 'error') {
+      chat.mensajes.pop();
+    } else {
+      break;
+    }
+  }
+
+  const lastUser = [...chat.mensajes].reverse().find(m => m.rol === 'user');
+  if (!lastUser) { guardarEstado(); renderMensajes(); return; }
+
+  guardarEstado();
+  renderMensajes();
+
+  const mems = obtenerMemoriasRelevantes(lastUser.contenido);
+  actualizarInfoMemorias(mems);
+  const mensajesAPI = construirMensajesAPI(chat, mems);
+
+  toggleCargando(true);
+  abortCtrl = new AbortController();
+  let respuestaCompleta = '';
+  let truncado = false;
+
+  try {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${E.apiKey}`,
+        'HTTP-Referer': location.href,
+        'X-Title': 'Mi Chat IA',
+      },
+      body: JSON.stringify({
+        model: E.modeloActual,
+        messages: mensajesAPI,
+        stream: true,
+        temperature: E.temperatura,
+        repetition_penalty: E.repPenalty,
+        max_tokens: E.maxTokens,
+      }),
+      signal: abortCtrl.signal,
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `Error HTTP ${resp.status}`);
+    }
+
+    quitarTyping();
+    const msgAI = { id: uid(), rol: 'assistant', contenido: '', ts: Date.now() };
+    chat.mensajes.push(msgAI);
+    const bubbleId = 'burbuja-' + msgAI.id;
+    crearBurbujaIA(bubbleId);
+
+    ({ texto: respuestaCompleta, truncado } = await _streamRespuesta(
+      resp.body, bubbleId, abortCtrl.signal,
+      txt => actualizarBurbujaIA(bubbleId, txt, false)
+    ));
+    msgAI.contenido = respuestaCompleta;
+    chat.actualizadoEn = Date.now();
+    guardarEstado();
+    actualizarBurbujaIA(bubbleId, respuestaCompleta, true);
+    if (truncado) mostrarBotonContinuar(bubbleId);
+    renderListaChats();
+
+  } catch (err) {
+    quitarTyping();
+    if (err.name !== 'AbortError') {
+      chat.mensajes.push({ id: uid(), rol: 'error', contenido: 'Error: ' + err.message, ts: Date.now() });
+      guardarEstado();
+      renderMensajes();
+      mostrarToast('⚠ ' + err.message, 4000);
+    }
+  } finally {
+    toggleCargando(false);
+    abortCtrl = null;
+    scrollAbajo();
+  }
+}
+
+// ============================================================
+// EMOJI PICKER
+// ============================================================
+const EMOJIS = {
+  '😊': ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😊','😇','🥰','😍','🤩','😘','😗','😙','😚','🙃','😉','😌','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😔','😪','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','😵','🤯','🥳','😎','🤓','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👻','😺','😸','😹','😻','😼','😽','🙀','😿','😾'],
+  '👋': ['👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🙏','✍️','💪','🤝','💅','🖕','🤙','👁️','👀','👄','💋','👅','👂','👃','🫦'],
+  '❤️': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🔥','❤️‍🩹','💕','💞','💓','💗','💖','💘','💝','💟','♥️','💌','💋','🫀','💯','🔥','⭐','🌟','✨','💫','⚡','🌈','🎉','🎊','🎈','🎁','🏆','🥇','👑','💎','🌹','🌺','🌸','🌼','🌻','💐'],
+  '🌿': ['🌸','🌺','🌻','🌹','🌷','🌼','💐','🍀','🌿','☘️','🌱','🌲','🌳','🌴','🌵','🎋','🍃','🍂','🍁','🍄','🌾','💧','🌊','🌈','☀️','🌤️','⛅','☁️','🌧️','⛈️','❄️','☃️','⛄','🌙','⭐','🌟','✨','🌍','🌎','🌏','🌋','🏔️','⛰️','🏕️','🏖️','🌅','🌄','🌃','🌆','🌇','🌉'],
+  '🍕': ['🍎','🍊','🍋','🍇','🍓','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🌽','🧄','🥕','🍕','🍔','🌮','🌯','🍜','🍣','🍱','🍙','🧁','🎂','🍰','🍭','🍬','🍫','🍿','🍩','🍪','☕','🍵','🧃','🥤','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🍾','🥛','🧊'],
+  '⚽': ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🏓','🏸','🥊','🏹','🎯','🎮','🕹️','🎲','🧩','🎭','🎨','🎬','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎙️','🎪','🎠','🎡','🎢','🎪'],
+  '🚗': ['🚗','🚕','🚙','🚌','🏎️','🚓','🚑','🚒','🚚','🚜','🏍️','🛵','🚲','✈️','🚀','🛸','🚁','🚂','🚄','🚆','🚇','⛵','🛥️','🚢','🏠','🏡','🏢','🏥','🏦','🏨','🏫','🏪','🏩','⛪','🕌','🗼','🗽','🗺️','🌋','🏝️'],
+  '💡': ['💡','🔦','💻','🖥️','📱','📷','📹','🎥','📺','📻','📞','⌨️','🖱️','🖨️','🔋','💿','📁','📊','📈','📌','✂️','🔒','🔑','🔨','⚙️','🔧','🔩','💊','💉','🩹','🧲','📦','🛒','💰','💳','🪙','📮','📬','📝','✏️','🖊️','🖋️','📖','📚','🗒️','🗓️'],
+};
+
+const EMOJI_CATS = Object.keys(EMOJIS);
+let emojiCatActual = EMOJI_CATS[0];
+
+function toggleEmojiPicker(e) {
+  e.stopPropagation();
+  const picker = document.getElementById('emoji-picker');
+  if (picker.classList.contains('visible')) {
+    picker.classList.remove('visible');
+  } else {
+    renderEmojiPicker();
+    picker.classList.add('visible');
+  }
+}
+
+function renderEmojiPicker() {
+  const catBtns = EMOJI_CATS.map(cat =>
+    `<button class="emoji-cat-btn ${cat === emojiCatActual ? 'activo' : ''}" onclick="cambiarCatEmoji('${cat}')">${cat}</button>`
+  ).join('');
+  const emojiBtns = EMOJIS[emojiCatActual].map(e =>
+    `<button class="emoji-btn" onclick="insertarEmoji('${e}')">${e}</button>`
+  ).join('');
+  document.getElementById('emoji-picker').innerHTML =
+    `<div class="emoji-categorias">${catBtns}</div><div id="emoji-grid">${emojiBtns}</div>`;
+}
+
+function cambiarCatEmoji(cat) {
+  emojiCatActual = cat;
+  renderEmojiPicker();
+}
+
+function insertarEmoji(emoji) {
+  const campo = document.getElementById('campo-msg');
+  const start = campo.selectionStart;
+  const end = campo.selectionEnd;
+  campo.value = campo.value.slice(0, start) + emoji + campo.value.slice(end);
+  campo.selectionStart = campo.selectionEnd = start + emoji.length;
+  campo.focus();
+  autoAltura(campo);
+}
+
+document.addEventListener('click', () => {
+  document.getElementById('emoji-picker')?.classList.remove('visible');
+});
+
+// ============================================================
+// SINCRONIZACIÓN VÍA GITHUB GIST
+// ============================================================
+const GIST_FILENAME = 'mi_chat_ia_sync.json';
+
+function abrirModalSync() {
+  document.getElementById('sync-token').value = E.gistToken || '';
+  document.getElementById('sync-gist-id').value = E.gistId || '';
+  document.getElementById('sync-estado').textContent = '';
+}
+
+function guardarConfigSync() {
+  E.gistToken = document.getElementById('sync-token').value.trim();
+  E.gistId = document.getElementById('sync-gist-id').value.trim();
+  guardarEstado();
+  cerrarModal('modal-sync');
+  mostrarToast('✅ Configuración de sync guardada');
+}
+
+function copiarGistId() {
+  const id = document.getElementById('sync-gist-id').value.trim();
+  if (!id) { mostrarToast('Aún no hay Gist ID'); return; }
+  navigator.clipboard.writeText(id).then(() => mostrarToast('📋 Gist ID copiado'));
+}
+
+function _syncEstado(msg, color) {
+  const el = document.getElementById('sync-estado');
+  if (el) { el.textContent = msg; el.style.color = color || 'var(--text2)'; }
+}
+
+function _syncBotones(activo) {
+  ['btn-push', 'btn-pull'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.disabled = activo;
+  });
+  const sidebar = document.getElementById('btn-sidebar-sync');
+  if (sidebar) sidebar.style.opacity = activo ? '0.5' : '';
+}
+
+async function sincronizarPush() {
+  const token = document.getElementById('sync-token').value.trim() || E.gistToken;
+  if (!token) { _syncEstado('⚠️ Necesitas un GitHub Token', '#e05252'); return; }
+
+  _syncBotones(true);
+  _syncEstado('⬆️ Subiendo...', 'var(--accent)');
+
+  const payload = JSON.stringify({
+    version: 2,
+    app: 'Mi Chat IA',
+    syncedAt: new Date().toISOString(),
+    chats: E.chats,
+    memorias: E.memorias,
+    config: {
+      systemPrompt: E.systemPrompt,
+      nombreAI: E.nombreAI,
+      nombreUsuario: E.nombreUsuario,
+      temperatura: E.temperatura,
+      repPenalty: E.repPenalty,
+      mensajesContexto: E.mensajesContexto,
+      maxMemorias: E.maxMemorias,
+      maxTokens: E.maxTokens,
+      modelosCustom: E.modelosCustom,
+      modeloActual: E.modeloActual,
+    }
+  }, null, 2);
+
+  try {
+    let gistId = document.getElementById('sync-gist-id').value.trim() || E.gistId;
+    let url, method;
+
+    if (gistId) {
+      url = `https://api.github.com/gists/${gistId}`;
+      method = 'PATCH';
+    } else {
+      url = 'https://api.github.com/gists';
+      method = 'POST';
+    }
+
+    const resp = await fetch(url, {
+      method,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      body: JSON.stringify({
+        description: 'Mi Chat IA — sync backup',
+        public: false,
+        files: { [GIST_FILENAME]: { content: payload } },
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `Error ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    gistId = data.id;
+
+    // Guardar token y gist id
+    E.gistToken = token;
+    E.gistId = gistId;
+    guardarEstado();
+
+    document.getElementById('sync-gist-id').value = gistId;
+    document.getElementById('sync-token').value = token;
+
+    _syncEstado(`✅ Push completado · ${new Date().toLocaleTimeString('es-ES')}`, '#10a37f');
+    mostrarToast('✅ Datos subidos al Gist');
+
+  } catch (err) {
+    _syncEstado('❌ ' + err.message, '#e05252');
+    mostrarToast('❌ Push fallido: ' + err.message, 4000);
+  } finally {
+    _syncBotones(false);
+  }
+}
+
+async function sincronizarPull() {
+  const token = document.getElementById('sync-token').value.trim() || E.gistToken;
+  const gistId = document.getElementById('sync-gist-id').value.trim() || E.gistId;
+
+  if (!gistId) { _syncEstado('⚠️ Introduce el Gist ID primero', '#e05252'); return; }
+
+  _syncBotones(true);
+  _syncEstado('⬇️ Descargando...', 'var(--accent)');
+
+  try {
+    const headers = { 'X-GitHub-Api-Version': '2022-11-28' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const resp = await fetch(`https://api.github.com/gists/${gistId}`, { headers });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `Error ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const fileUrl = data.files?.[GIST_FILENAME]?.raw_url;
+    if (!fileUrl) throw new Error(`No se encontró "${GIST_FILENAME}" en el Gist`);
+
+    const rawResp = await fetch(fileUrl);
+    if (!rawResp.ok) throw new Error('No se pudo leer el contenido del Gist');
+    const remoto = await rawResp.json();
+
+    // Fusionar chats (gana el de mayor actualizadoEn)
+    let fusionados = 0;
+    if (Array.isArray(remoto.chats)) {
+      const localMap = new Map(E.chats.map(c => [c.id, c]));
+      remoto.chats.forEach(c => {
+        const local = localMap.get(c.id);
+        if (!local) {
+          E.chats.push(c);
+          fusionados++;
+        } else if (c.actualizadoEn > local.actualizadoEn) {
+          localMap.set(c.id, c);
+          fusionados++;
+        }
+      });
+      E.chats = [...localMap.values()].sort((a, b) => b.actualizadoEn - a.actualizadoEn);
+    }
+
+    // Fusionar memorias (gana la remota si tiene mismo id y es más nueva)
+    if (Array.isArray(remoto.memorias)) {
+      const localMap = new Map(E.memorias.map(m => [m.id, m]));
+      remoto.memorias.forEach(m => {
+        if (!localMap.has(m.id)) localMap.set(m.id, m);
+        else if ((m.actualizadoEn || 0) > (localMap.get(m.id).actualizadoEn || 0)) localMap.set(m.id, m);
+      });
+      E.memorias = [...localMap.values()];
+    }
+
+    // Guardar token y gistId si los teníamos
+    if (token) E.gistToken = token;
+    E.gistId = gistId;
+
+    guardarEstado();
+    renderApp();
+
+    _syncEstado(`✅ Pull completado · ${fusionados} elemento(s) fusionado(s) · ${new Date().toLocaleTimeString('es-ES')}`, '#10a37f');
+    mostrarToast(`✅ Sync completado — ${fusionados} cambios fusionados`);
+
+  } catch (err) {
+    _syncEstado('❌ ' + err.message, '#e05252');
+    mostrarToast('❌ Pull fallido: ' + err.message, 4000);
+  } finally {
+    _syncBotones(false);
+  }
+}
+
+// ============================================================
+// INICIALIZACIÓN
+// ============================================================
+async function iniciar() {
+  try {
+    await iniciarDB();
+    await cargarEstado();
+  } catch (err) {
+    console.warn('IndexedDB no disponible, usando memoria temporal:', err);
+  }
+
+  // Migración: corregir ID de modelo antiguo si quedó guardado
+  if (E.modeloActual === 'openai/chatgpt-4o-2024-11-20') {
+    E.modeloActual = 'openai/gpt-4o-2024-11-20';
+    guardarEstado();
+  }
+
+  if (!E.apiKey) {
+    document.getElementById('pantalla-inicio').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  } else {
+    document.getElementById('pantalla-inicio').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    renderApp();
+  }
+}
+
+iniciar();
+</script>
+</body>
+</html>
