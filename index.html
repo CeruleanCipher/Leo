@@ -929,6 +929,9 @@ body {
       <button class="btn-sidebar" onclick="abrirModal('modal-exportar')">
         <span class="icon">📤</span>Exportar
       </button>
+      <button class="btn-sidebar" id="btn-sidebar-sync" onclick="abrirModal('modal-sync')">
+        <span class="icon">🔄</span>Sync
+      </button>
     </div>
   </div>
 
@@ -1188,6 +1191,51 @@ body {
   </div>
 </div>
 
+<!-- ==================== MODAL SYNC ==================== -->
+<div class="overlay" id="modal-sync" onclick="clickFuera(event,'modal-sync')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>🔄 Sincronizar dispositivos</h2>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:16px">
+      Usa un <strong>GitHub Gist</strong> como puente entre tu PC y tu móvil. Gratis, sin servidor.
+      <br><a href="https://github.com/settings/tokens/new?scopes=gist&description=MiChatIA" target="_blank" style="color:var(--accent)">Crear token GitHub →</a>
+      <span style="color:var(--text2);font-size:11px">(scope: gist)</span>
+    </p>
+
+    <div class="campo">
+      <label>GitHub Personal Access Token</label>
+      <input type="password" id="sync-token" placeholder="ghp_...">
+    </div>
+
+    <div class="campo">
+      <label>Gist ID <span style="font-weight:400;text-transform:none;letter-spacing:0">(se crea automáticamente al hacer Push por primera vez)</span></label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="sync-gist-id" placeholder="Se genera al hacer Push →" style="flex:1;font-family:monospace;font-size:12px">
+        <button class="btn btn-ghost" onclick="copiarGistId()" title="Copiar ID">📋</button>
+      </div>
+    </div>
+
+    <div id="sync-estado" style="font-size:12px;color:var(--text2);min-height:18px;margin-bottom:12px"></div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn btn-primario" onclick="sincronizarPush()" id="btn-push">
+        ⬆️ Push (subir al Gist)
+      </button>
+      <button class="btn btn-ghost" onclick="sincronizarPull()" id="btn-pull">
+        ⬇️ Pull (descargar y fusionar)
+      </button>
+    </div>
+    <p style="font-size:11px;color:var(--text2)">
+      <strong>Push</strong> sube tus datos actuales al Gist (sobrescribe el Gist).<br>
+      <strong>Pull</strong> descarga el Gist y fusiona con tus datos locales — gana el mensaje más reciente.
+    </p>
+
+    <div class="modal-pie">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-sync')">Cerrar</button>
+      <button class="btn btn-primario" onclick="guardarConfigSync()">Guardar configuración</button>
+    </div>
+  </div>
+</div>
+
 <!-- DRAG & DROP OVERLAY -->
 <div id="drop-overlay">
   <div class="drop-mensaje">🖼️ Suelta aquí para adjuntar<br><span style="font-size:14px;font-weight:400;opacity:0.7">Se añadirá a tu mensaje</span></div>
@@ -1236,6 +1284,8 @@ const ESTADO_INICIAL = {
   chats: [],
   memorias: [],
   chatActivoId: null,
+  gistToken: '',
+  gistId: '',
 };
 
 let E = { ...ESTADO_INICIAL }; // Estado global
@@ -2160,6 +2210,7 @@ function toggleSidebar() {
 function abrirModal(id) {
   if (id === 'modal-ajustes') cargarFormAjustes();
   if (id === 'modal-memorias') renderListaMemorias();
+  if (id === 'modal-sync') abrirModalSync();
   document.getElementById(id).classList.add('visible');
 }
 
@@ -2618,6 +2669,197 @@ function insertarEmoji(emoji) {
 document.addEventListener('click', () => {
   document.getElementById('emoji-picker')?.classList.remove('visible');
 });
+
+// ============================================================
+// SINCRONIZACIÓN VÍA GITHUB GIST
+// ============================================================
+const GIST_FILENAME = 'mi_chat_ia_sync.json';
+
+function abrirModalSync() {
+  document.getElementById('sync-token').value = E.gistToken || '';
+  document.getElementById('sync-gist-id').value = E.gistId || '';
+  document.getElementById('sync-estado').textContent = '';
+}
+
+function guardarConfigSync() {
+  E.gistToken = document.getElementById('sync-token').value.trim();
+  E.gistId = document.getElementById('sync-gist-id').value.trim();
+  guardarEstado();
+  cerrarModal('modal-sync');
+  mostrarToast('✅ Configuración de sync guardada');
+}
+
+function copiarGistId() {
+  const id = document.getElementById('sync-gist-id').value.trim();
+  if (!id) { mostrarToast('Aún no hay Gist ID'); return; }
+  navigator.clipboard.writeText(id).then(() => mostrarToast('📋 Gist ID copiado'));
+}
+
+function _syncEstado(msg, color) {
+  const el = document.getElementById('sync-estado');
+  if (el) { el.textContent = msg; el.style.color = color || 'var(--text2)'; }
+}
+
+function _syncBotones(activo) {
+  ['btn-push', 'btn-pull'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.disabled = activo;
+  });
+  const sidebar = document.getElementById('btn-sidebar-sync');
+  if (sidebar) sidebar.style.opacity = activo ? '0.5' : '';
+}
+
+async function sincronizarPush() {
+  const token = document.getElementById('sync-token').value.trim() || E.gistToken;
+  if (!token) { _syncEstado('⚠️ Necesitas un GitHub Token', '#e05252'); return; }
+
+  _syncBotones(true);
+  _syncEstado('⬆️ Subiendo...', 'var(--accent)');
+
+  const payload = JSON.stringify({
+    version: 2,
+    app: 'Mi Chat IA',
+    syncedAt: new Date().toISOString(),
+    chats: E.chats,
+    memorias: E.memorias,
+    config: {
+      systemPrompt: E.systemPrompt,
+      nombreAI: E.nombreAI,
+      nombreUsuario: E.nombreUsuario,
+      temperatura: E.temperatura,
+      repPenalty: E.repPenalty,
+      mensajesContexto: E.mensajesContexto,
+      maxMemorias: E.maxMemorias,
+      maxTokens: E.maxTokens,
+      modelosCustom: E.modelosCustom,
+      modeloActual: E.modeloActual,
+    }
+  }, null, 2);
+
+  try {
+    let gistId = document.getElementById('sync-gist-id').value.trim() || E.gistId;
+    let url, method;
+
+    if (gistId) {
+      url = `https://api.github.com/gists/${gistId}`;
+      method = 'PATCH';
+    } else {
+      url = 'https://api.github.com/gists';
+      method = 'POST';
+    }
+
+    const resp = await fetch(url, {
+      method,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      body: JSON.stringify({
+        description: 'Mi Chat IA — sync backup',
+        public: false,
+        files: { [GIST_FILENAME]: { content: payload } },
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `Error ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    gistId = data.id;
+
+    // Guardar token y gist id
+    E.gistToken = token;
+    E.gistId = gistId;
+    guardarEstado();
+
+    document.getElementById('sync-gist-id').value = gistId;
+    document.getElementById('sync-token').value = token;
+
+    _syncEstado(`✅ Push completado · ${new Date().toLocaleTimeString('es-ES')}`, '#10a37f');
+    mostrarToast('✅ Datos subidos al Gist');
+
+  } catch (err) {
+    _syncEstado('❌ ' + err.message, '#e05252');
+    mostrarToast('❌ Push fallido: ' + err.message, 4000);
+  } finally {
+    _syncBotones(false);
+  }
+}
+
+async function sincronizarPull() {
+  const token = document.getElementById('sync-token').value.trim() || E.gistToken;
+  const gistId = document.getElementById('sync-gist-id').value.trim() || E.gistId;
+
+  if (!gistId) { _syncEstado('⚠️ Introduce el Gist ID primero', '#e05252'); return; }
+
+  _syncBotones(true);
+  _syncEstado('⬇️ Descargando...', 'var(--accent)');
+
+  try {
+    const headers = { 'X-GitHub-Api-Version': '2022-11-28' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const resp = await fetch(`https://api.github.com/gists/${gistId}`, { headers });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `Error ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const fileUrl = data.files?.[GIST_FILENAME]?.raw_url;
+    if (!fileUrl) throw new Error(`No se encontró "${GIST_FILENAME}" en el Gist`);
+
+    const rawResp = await fetch(fileUrl);
+    if (!rawResp.ok) throw new Error('No se pudo leer el contenido del Gist');
+    const remoto = await rawResp.json();
+
+    // Fusionar chats (gana el de mayor actualizadoEn)
+    let fusionados = 0;
+    if (Array.isArray(remoto.chats)) {
+      const localMap = new Map(E.chats.map(c => [c.id, c]));
+      remoto.chats.forEach(c => {
+        const local = localMap.get(c.id);
+        if (!local) {
+          E.chats.push(c);
+          fusionados++;
+        } else if (c.actualizadoEn > local.actualizadoEn) {
+          localMap.set(c.id, c);
+          fusionados++;
+        }
+      });
+      E.chats = [...localMap.values()].sort((a, b) => b.actualizadoEn - a.actualizadoEn);
+    }
+
+    // Fusionar memorias (gana la remota si tiene mismo id y es más nueva)
+    if (Array.isArray(remoto.memorias)) {
+      const localMap = new Map(E.memorias.map(m => [m.id, m]));
+      remoto.memorias.forEach(m => {
+        if (!localMap.has(m.id)) localMap.set(m.id, m);
+        else if ((m.actualizadoEn || 0) > (localMap.get(m.id).actualizadoEn || 0)) localMap.set(m.id, m);
+      });
+      E.memorias = [...localMap.values()];
+    }
+
+    // Guardar token y gistId si los teníamos
+    if (token) E.gistToken = token;
+    E.gistId = gistId;
+
+    guardarEstado();
+    renderApp();
+
+    _syncEstado(`✅ Pull completado · ${fusionados} elemento(s) fusionado(s) · ${new Date().toLocaleTimeString('es-ES')}`, '#10a37f');
+    mostrarToast(`✅ Sync completado — ${fusionados} cambios fusionados`);
+
+  } catch (err) {
+    _syncEstado('❌ ' + err.message, '#e05252');
+    mostrarToast('❌ Pull fallido: ' + err.message, 4000);
+  } finally {
+    _syncBotones(false);
+  }
+}
 
 // ============================================================
 // INICIALIZACIÓN
